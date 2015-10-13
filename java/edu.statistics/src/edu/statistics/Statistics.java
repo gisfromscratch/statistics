@@ -24,7 +24,8 @@ public class Statistics {
 				Map<String, Frequency> frequencies = new HashMap<String, Frequency>();
 				boolean readHeader = true;
 				String line;
-				while (null != (line = reader.readLine())) {
+				final long chunkSize = (long) 5e5;
+				for (long lineNumber = 0; null != (line = reader.readLine()); lineNumber++) {
 					StringTokenizer tokenizer = new StringTokenizer(line, ",");
 					for (int tokenIndex = 0; tokenizer.hasMoreTokens(); tokenIndex++) {
 						String nextToken = tokenizer.nextToken();
@@ -46,8 +47,12 @@ public class Statistics {
 					if (readHeader) {
 						readHeader = fieldNames.isEmpty();
 					}
+					if (0 != lineNumber && 0 == (lineNumber % chunkSize)) {
+						System.out.println(String.format("%d lines read", lineNumber));
+					}
 				}
 				
+				System.out.println();
 				for (Map.Entry<String, Frequency> fieldEntry : frequencies.entrySet()) {
 					String fieldName = fieldEntry.getKey();
 					Frequency frequency = fieldEntry.getValue();

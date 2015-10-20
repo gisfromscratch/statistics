@@ -21,7 +21,7 @@ namespace Statistics
                     bool readHeader = true;
                     string line;
                     const long chunkSize = (long) 5e5;
-                    for (var lineNumber = 0; null != (line = reader.ReadLine()); lineNumber++)
+                    for (var lineNumber = 1; null != (line = reader.ReadLine()); lineNumber++)
                     {
                         var tokens = line.Split(',');
                         var tokenCount = tokens.Length;
@@ -52,9 +52,9 @@ namespace Statistics
                         {
                             readHeader = !fieldNames.Any();
                         }
-                        if (0 != lineNumber && 0 == (lineNumber % chunkSize))
+                        if (0 == (lineNumber % chunkSize))
                         {
-                            Console.WriteLine(@"{0} lines read", lineNumber);
+                            Console.WriteLine(@"{0} lines read.", lineNumber);
                         }
                     }
 

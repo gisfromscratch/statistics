@@ -17,3 +17,5 @@
 #include <string>
 #include <tchar.h>
 #include <vector>
+
+#include "Frequency.h"

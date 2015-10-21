@@ -6,6 +6,67 @@
 using namespace edu::statistics;
 using namespace std;
 
+struct LineEnding
+{
+	wchar_t delimiter;
+	short skip;
+};
+
+static LineEnding FindLineEnding(wifstream *inputStream)
+{
+	// Default is UNIX style \n
+	LineEnding lineEnding;
+	lineEnding.delimiter = L'\n';
+	lineEnding.skip = 0;
+	bool match = false;
+	const int bufferSize = 1024;
+	wchar_t buffer[bufferSize];
+
+	long startPos = 0;
+	inputStream->seekg(startPos, inputStream->end);
+	__int64 fileSize = (__int64) inputStream->tellg();
+	do
+	{
+		inputStream->seekg(startPos, inputStream->beg);
+		int length = (bufferSize < fileSize) ? bufferSize : fileSize;
+		inputStream->read(buffer, bufferSize);
+		for (int charIndex = 0; charIndex < length; charIndex++)
+		{
+			if (L'\n' == buffer[charIndex])
+			{
+				// UNIX style
+				lineEnding.delimiter = L'\n';
+				lineEnding.skip = 0;
+				match = true;
+				break;
+			}
+
+			if (L'\r' == buffer[charIndex])
+			{
+				int nextCharIndex = charIndex + 1;
+				if (nextCharIndex < length && L'\n' == buffer[nextCharIndex])
+				{
+					// WINDOWS - DOS style \r\n
+					lineEnding.delimiter = L'\r';
+					lineEnding.skip = 1;
+					match = true;
+					break;
+				}
+
+				// MAC style
+				lineEnding.delimiter = L'\r';
+				lineEnding.skip = 0;
+				match = true;
+				break;
+			}
+		}
+		startPos += length;
+	} while (startPos < fileSize && !match);
+	
+	inputStream->seekg(0, inputStream->beg);
+	return lineEnding;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	for (int index = 1; index < argc; index++)
@@ -27,8 +88,14 @@ int _tmain(int argc, _TCHAR* argv[])
 			wstring line;
 			wregex splitter(L",");
 			const size_t chunkSize = (size_t) 5e5;
-			for (size_t lineNumber = 1; getline(inputStream, line); lineNumber++)
-			{
+			LineEnding lineEnding = FindLineEnding(&inputStream);
+			for (size_t lineNumber = 1; getline(inputStream, line, lineEnding.delimiter); lineNumber++)
+			{				
+				if (0 < lineEnding.skip)
+				{
+					// Remove control chars like \n
+					line.replace(line.begin(), line.begin() + lineEnding.skip, L"");
+				}
 				wsregex_token_iterator tokenIterator(line.begin(), line.end(), splitter, -1);
 				wsregex_token_iterator tokenIteratorEnd;
 				for (size_t tokenIndex = 0; tokenIteratorEnd != tokenIterator; tokenIndex++, tokenIterator++)
@@ -51,7 +118,7 @@ int _tmain(int argc, _TCHAR* argv[])
 						if (frequencies.end() != iterator)
 						{
 							Frequency &frequency = iterator->second;
-							frequency.addValue(nextToken);
+							//frequency.addValue(nextToken);
 						}
 					}
 				}

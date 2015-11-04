@@ -12,6 +12,22 @@ struct LineEnding
 	short skip;
 };
 
+struct CharStream
+{
+	LineEnding *lineEnding;
+	wchar_t *buffer;
+	int bufferSize;
+
+	__int64 fileSize;
+	int pos;
+};
+
+static CharStream* NextLine(wifstream *inputStream, CharStream *stream)
+{
+	
+	return stream;
+}
+
 static LineEnding FindLineEnding(wifstream *inputStream)
 {
 	// Default is UNIX style \n
@@ -118,7 +134,7 @@ int _tmain(int argc, _TCHAR* argv[])
 						if (frequencies.end() != iterator)
 						{
 							Frequency &frequency = iterator->second;
-							//frequency.addValue(nextToken);
+							frequency.addValue(nextToken);
 						}
 					}
 				}

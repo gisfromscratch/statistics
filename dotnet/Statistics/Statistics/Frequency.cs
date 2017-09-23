@@ -71,5 +71,13 @@ namespace Statistics
                 return _modeValues;
             }
         }
+
+        internal IEnumerable<IComparable<TValue>> SortedModeValues
+        {
+            get
+            {
+                return from pair in _frequencyValues orderby pair.Value descending select pair.Key;
+            }
+        }
     }
 }

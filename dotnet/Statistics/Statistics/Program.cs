@@ -3,13 +3,23 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Statistics
 {
     class Program
     {
+        private static char[] GetDelimiters()
+        {
+            var delimiter = Settings.Default.Delimiter;
+            switch (delimiter.ToUpperInvariant())
+            {
+                case @"TAB":
+                    return new[] { '\t' };
+                default:
+                    return delimiter.ToCharArray();
+            }
+        }
+
         static void Main(string[] arguments)
         {
             foreach (var argument in arguments) 
@@ -24,7 +34,7 @@ namespace Statistics
                     const long chunkSize = (long) 5e5;
                     for (var lineNumber = 1; null != (line = reader.ReadLine()); lineNumber++)
                     {
-                        var tokens = line.Split(Settings.Default.Delimiter.ToCharArray());
+                        var tokens = line.Split(GetDelimiters());
                         var tokenCount = tokens.Length;
                         for (var tokenIndex = 0; tokenIndex < tokenCount; tokenIndex++)
                         {
@@ -80,10 +90,16 @@ namespace Statistics
                         var fieldName = fieldEntry.Key;
                         var frequency = fieldEntry.Value;
                         Console.WriteLine("{0}\t", fieldName);
-                        var modeValues = frequency.ModeValues;
+                        var modeValues = frequency.SortedModeValues;
+                        var maxCount = 10;
+                        var index = 0;
                         foreach (var modeValue in modeValues)
                         {
                             Console.WriteLine("\t{0}:\t{1}", modeValue, frequency.GetFrequencyCount(modeValue));
+                            if (++index == maxCount)
+                            {
+                                break;
+                            }
                         }
                     }
                     Console.WriteLine();

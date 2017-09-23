@@ -6,7 +6,7 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="Delimiter" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">\t</Value>
+      <Value Profile="(Default)">TAB</Value>
     </Setting>
   </Settings>
 </SettingsFile>

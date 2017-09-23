@@ -34,7 +34,7 @@ namespace Statistics.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("\\t")]
+        [global::System.Configuration.DefaultSettingValueAttribute("TAB")]
         public string Delimiter {
             get {
                 return ((string)(this["Delimiter"]));

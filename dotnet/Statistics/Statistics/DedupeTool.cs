@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Statistics
@@ -30,13 +31,19 @@ namespace Statistics
         private readonly char[] _delims;
         private bool _readHeader;
         private readonly IList<Record> _records;
+        private readonly int _blockIndex;
+        private readonly int[] _compareIndices;
+        private readonly IDictionary<string, IList<Record>> _blocks;
 
-        internal DedupeTool(bool hasHeader, char[] delims)
+        internal DedupeTool(bool hasHeader, char[] delims, int[] compareIndices, int blockIndex = -1)
         {
             _hasHeader = hasHeader;
             _delims = delims;
             _readHeader = true;
             _records = new List<Record>();
+            _blockIndex = blockIndex;
+            _compareIndices = compareIndices;
+            _blocks = new Dictionary<string, IList<Record>>();
         }
 
         internal void Apply(string line)
@@ -44,6 +51,7 @@ namespace Statistics
             var tokens = line.Split(_delims);
             var tokenCount = tokens.Length;
             var attributes = new List<Attribute>();
+            string soundex = null;
             for (var tokenIndex = 0; tokenIndex < tokenCount; tokenIndex++)
             {
                 var nextToken = tokens[tokenIndex];
@@ -57,6 +65,12 @@ namespace Statistics
                     attribute.AttributeType = AttributeType.String;
                     attribute.Value = nextToken;
                     attributes.Add(attribute);
+
+                    // SoundEx-Blocking
+                    if (tokenIndex == _blockIndex)
+                    {
+                        soundex = StringUtils.SoundEx(nextToken, 4);
+                    }
                 }
             }
 
@@ -65,6 +79,19 @@ namespace Statistics
             {
                 var record = new Record(attributes);
                 _records.Add(record);
+
+                // SoundEx-Bocking
+                if (null != soundex)
+                {
+                    if (_blocks.ContainsKey(soundex))
+                    {
+                        _blocks[soundex].Add(record);
+                    }
+                    else
+                    {
+                        _blocks.Add(soundex, new List<Record> { record });
+                    }
+                }
             }
 
             if (_readHeader)
@@ -77,49 +104,181 @@ namespace Statistics
         {
             const float threshold = 0.9f;
             var matches = new ConcurrentDictionary<Record, IList<Record>>();
-            var recordCount = _records.Count;
-            Parallel.For(0, recordCount, recordIndex =>
+            if (-1 == _blockIndex)
             {
-                var record = _records[recordIndex];
-                Parallel.For(recordIndex + 1, recordCount, otherRecordIndex =>
+                // Any combination
+                var recordCount = _records.Count;
+                Parallel.For(0, recordCount, recordIndex =>
                 {
-                    // Calculate similarities
-                    var otherRecord = _records[otherRecordIndex];
-                    var attributes = record.Attributes;
-                    var otherAttributes = otherRecord.Attributes;
-                    var attributeCount = attributes.Count;
-                    var otherAttributeCount = otherAttributes.Count;
-                    if (attributeCount == otherAttributeCount)
+                    var record = _records[recordIndex];
+                    Interlocked.Increment(ref recordIndex);
+                    Parallel.For(recordIndex, recordCount, otherRecordIndex =>
                     {
-                        var matchCount = 0;
-                        for (var index = 0; index < attributeCount; index++)
+                        // Calculate similarities
+                        var otherRecord = _records[otherRecordIndex];
+                        var attributes = record.Attributes;
+                        var otherAttributes = otherRecord.Attributes;
+                        var attributeCount = attributes.Count;
+                        var otherAttributeCount = otherAttributes.Count;
+                        if (attributeCount == otherAttributeCount)
                         {
-                            var value = attributes[index].Value;
-                            var otherValue = otherAttributes[index].Value;
-                            var similiarity = StringUtils.Similarity(value, otherValue);
-                            if (threshold <= similiarity)
+                            var matchCount = 0;
+                            if (_compareIndices.Length < 1)
                             {
-                                matchCount++;
+                                // Compare all attributes
+                                for (var index = 0; index < attributeCount; index++)
+                                {
+                                    var value = attributes[index].Value;
+                                    var otherValue = otherAttributes[index].Value;
+                                    var similiarity = StringUtils.Similarity(value, otherValue);
+                                    if (threshold <= similiarity)
+                                    {
+                                        matchCount++;
+                                    }
+                                    else
+                                    {
+                                        break;
+                                    }
+                                }
+                                if (matchCount == attributeCount)
+                                {
+                                    if (matches.ContainsKey(record))
+                                    {
+                                        matches[record].Add(otherRecord);
+                                    }
+                                    else
+                                    {
+                                        matches[record] = new List<Record>() { otherRecord };
+                                    }
+                                }
                             }
                             else
                             {
-                                break;
+                                // Compare only defined attributes
+                                var maxMatchCount = _compareIndices.Length;
+                                foreach (var index in _compareIndices)
+                                {
+                                    if (index < attributeCount)
+                                    {
+                                        var value = attributes[index].Value;
+                                        var otherValue = otherAttributes[index].Value;
+                                        var similiarity = StringUtils.Similarity(value, otherValue);
+                                        if (threshold <= similiarity)
+                                        {
+                                            matchCount++;
+                                        }
+                                        else
+                                        {
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (matchCount == maxMatchCount)
+                                {
+                                    if (matches.ContainsKey(record))
+                                    {
+                                        matches[record].Add(otherRecord);
+                                    }
+                                    else
+                                    {
+                                        matches[record] = new List<Record>() { otherRecord };
+                                    }
+                                }
                             }
                         }
-                        if (matchCount == attributeCount)
-                        {
-                            if (matches.ContainsKey(record))
-                            {
-                                matches[record].Add(otherRecord);
-                            }
-                            else
-                            {
-                                matches[record] = new List<Record>() { otherRecord };
-                            }
-                        }
-                    }
+                    });
                 });
-            });
+            }
+            else
+            {
+                // Only blocking records
+                Parallel.ForEach(_blocks, block =>
+                {
+                    // Any combination for this block
+                    var records = block.Value;
+                    var recordCount = records.Count;
+                    Parallel.For(0, recordCount, recordIndex =>
+                    {
+                        var record = records[recordIndex];
+                        Interlocked.Increment(ref recordIndex);
+                        Parallel.For(recordIndex, recordCount, otherRecordIndex =>
+                        {
+                            // Calculate similarities
+                            var otherRecord = records[otherRecordIndex];
+                            var attributes = record.Attributes;
+                            var otherAttributes = otherRecord.Attributes;
+                            var attributeCount = attributes.Count;
+                            var otherAttributeCount = otherAttributes.Count;
+                            if (attributeCount == otherAttributeCount)
+                            {
+                                var matchCount = 0;
+                                if (_compareIndices.Length < 1)
+                                {
+                                    // Compare all attributes
+                                    for (var index = 0; index < attributeCount; index++)
+                                    {
+                                        var value = attributes[index].Value;
+                                        var otherValue = otherAttributes[index].Value;
+                                        var similiarity = StringUtils.Similarity(value, otherValue);
+                                        if (threshold <= similiarity)
+                                        {
+                                            matchCount++;
+                                        }
+                                        else
+                                        {
+                                            break;
+                                        }
+                                    }
+                                    if (matchCount == attributeCount)
+                                    {
+                                        if (matches.ContainsKey(record))
+                                        {
+                                            matches[record].Add(otherRecord);
+                                        }
+                                        else
+                                        {
+                                            matches[record] = new List<Record>() { otherRecord };
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    // Compare only defined attributes
+                                    var maxMatchCount = _compareIndices.Length;
+                                    foreach (var index in _compareIndices)
+                                    {
+                                        if (index < attributeCount)
+                                        {
+                                            var value = attributes[index].Value;
+                                            var otherValue = otherAttributes[index].Value;
+                                            var similiarity = StringUtils.Similarity(value, otherValue);
+                                            if (threshold <= similiarity)
+                                            {
+                                                matchCount++;
+                                            }
+                                            else
+                                            {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (matchCount == maxMatchCount)
+                                    {
+                                        if (matches.ContainsKey(record))
+                                        {
+                                            matches[record].Add(otherRecord);
+                                        }
+                                        else
+                                        {
+                                            matches[record] = new List<Record>() { otherRecord };
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    });
+                });
+            }
 
             // Print matches
             Console.WriteLine();
@@ -141,6 +300,7 @@ namespace Statistics
                     }
                     Console.WriteLine();
                 }
+                Console.WriteLine();
             }
             Console.WriteLine();
         }

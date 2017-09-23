@@ -20,6 +20,20 @@ namespace Statistics
             }
         }
 
+        private static int[] GetCompareIndices()
+        {
+            var indices = new List<int>();
+            foreach(var index in Settings.Default.CompareIndices)
+            {
+                int intValue;
+                if (int.TryParse(index, out intValue))
+                {
+                    indices.Add(intValue);
+                }
+            }
+            return indices.ToArray();
+        }
+
         static void Main(string[] arguments)
         {
             foreach (var argument in arguments)
@@ -28,7 +42,9 @@ namespace Statistics
                 {
                     Console.WriteLine(@"Reading {0}", argument);
 
-                    var tool = new DedupeTool(Settings.Default.HasHeader, GetDelimiters());
+                    var blockIndex = Settings.Default.BlockIndex;
+                    var compareIndices = GetCompareIndices();
+                    var tool = new DedupeTool(Settings.Default.HasHeader, GetDelimiters(), compareIndices, blockIndex);
                     string line;
                     const long chunkSize = (long)5e5;
                     for (var lineNumber = 1; null != (line = reader.ReadLine()); lineNumber++)

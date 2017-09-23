@@ -45,7 +45,7 @@ namespace Statistics
             var codeLength = Math.Min(characters.Length, length);
             var buffer = new StringBuilder();
             buffer.Append(characters[0]);
-            for (var index = 1; index <= codeLength; index++)
+            for (var index = 1; index < codeLength; index++)
             {
                 switch (characters[index])
                 {

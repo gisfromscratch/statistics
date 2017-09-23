@@ -51,6 +51,7 @@ namespace Statistics
                 {
                     if (_hasHeader)
                     {
+                        // First line is the header
                         var fieldName = nextToken;
                         var fieldPrefix = 2;
                         while (_frequencies.ContainsKey(fieldName))
@@ -62,9 +63,12 @@ namespace Statistics
                     }
                     else
                     {
+                        // First line is not the header
                         var fieldName = string.Format(@"F_{0}", tokenIndex + 1);
                         _fieldNames.Add(fieldName);
-                        _frequencies.Add(fieldName, new Frequency<string>());
+                        var frequency = new Frequency<string>();
+                        frequency.AddValue(nextToken);
+                        _frequencies.Add(fieldName, frequency);
                     }
                 }
                 else

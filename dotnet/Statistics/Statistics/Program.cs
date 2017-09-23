@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Statistics.Properties;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -23,15 +24,30 @@ namespace Statistics
                     const long chunkSize = (long) 5e5;
                     for (var lineNumber = 1; null != (line = reader.ReadLine()); lineNumber++)
                     {
-                        var tokens = line.Split(',');
+                        var tokens = line.Split(Settings.Default.Delimiter.ToCharArray());
                         var tokenCount = tokens.Length;
                         for (var tokenIndex = 0; tokenIndex < tokenCount; tokenIndex++)
                         {
                             var nextToken = tokens[tokenIndex];
                             if (readHeader)
                             {
-                                fieldNames.Add(nextToken);
-                                frequencies.Add(nextToken, new Frequency<string>());
+                                if (Settings.Default.HasHeader)
+                                {
+                                    var fieldName = nextToken;
+                                    var fieldPrefix = 2;
+                                    while (frequencies.ContainsKey(fieldName))
+                                    {
+                                        fieldName = string.Format(@"{0}_{1}", nextToken, fieldPrefix++);
+                                    }
+                                    fieldNames.Add(fieldName);
+                                    frequencies.Add(fieldName, new Frequency<string>());
+                                }
+                                else
+                                {
+                                    var fieldName = string.Format(@"F_{0}", tokenIndex + 1);
+                                    fieldNames.Add(fieldName);
+                                    frequencies.Add(fieldName, new Frequency<string>());
+                                }
                             }
                             else
                             {

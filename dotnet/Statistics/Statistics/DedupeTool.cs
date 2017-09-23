@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+using System;
 using System.Collections.Generic;
 
 namespace Statistics
@@ -40,6 +41,7 @@ namespace Statistics
         {
             var tokens = line.Split(_delims);
             var tokenCount = tokens.Length;
+            var attributes = new List<Attribute>();
             for (var tokenIndex = 0; tokenIndex < tokenCount; tokenIndex++)
             {
                 var nextToken = tokens[tokenIndex];
@@ -49,13 +51,96 @@ namespace Statistics
                 }
                 else
                 {
-                    
+                    var attribute = new Attribute();
+                    attribute.AttributeType = AttributeType.String;
+                    attribute.Value = nextToken;
+                    attributes.Add(attribute);
                 }
             }
+
+            // Create a new record
+            if (0 < attributes.Count)
+            {
+                var record = new Record(attributes);
+                _records.Add(record);
+            }
+
             if (_readHeader)
             {
                 _readHeader = false;
             }
+        }
+
+        internal void Summary()
+        {
+            const float threshold = 0.9f;
+            var matches = new Dictionary<Record, IList<Record>>();
+            var recordCount = _records.Count;
+            for (var recordIndex = 0; recordIndex < recordCount; recordIndex++)
+            {
+                var record = _records[recordIndex];
+                for (var otherRecordIndex = recordIndex + 1; otherRecordIndex < recordCount; otherRecordIndex++)
+                {
+                    // Calculate similarities
+                    var otherRecord = _records[otherRecordIndex];
+                    var attributes = record.Attributes;
+                    var otherAttributes = otherRecord.Attributes;
+                    var attributeCount = attributes.Count;
+                    var otherAttributeCount = otherAttributes.Count;
+                    if (attributeCount == otherAttributeCount)
+                    {
+                        var matchCount = 0;
+                        for (var index = 0; index < attributeCount; index++)
+                        {
+                            var value = attributes[index].Value;
+                            var otherValue = otherAttributes[index].Value;
+                            var similiarity = StringUtils.Similarity(value, otherValue);
+                            if (threshold <= similiarity)
+                            {
+                                matchCount++;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        if (matchCount == attributeCount)
+                        {
+                            if (matches.ContainsKey(record))
+                            {
+                                matches[record].Add(otherRecord);
+                            }
+                            else
+                            {
+                                matches.Add(record, new List<Record>() { otherRecord });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Print matches
+            Console.WriteLine();
+            foreach (var match in matches)
+            {
+                var record = match.Key;
+                foreach (var attribute in record.Attributes)
+                {
+                    Console.Write(@"{0}|", attribute.Value);
+                }
+                Console.WriteLine();
+
+                var otherRecords = match.Value;
+                foreach (var otherRecord in otherRecords)
+                {
+                    foreach (var attribute in otherRecord.Attributes)
+                    {
+                        Console.Write(@"{0}|", attribute.Value);
+                    }
+                    Console.WriteLine();
+                }
+            }
+            Console.WriteLine();
         }
     }
 }

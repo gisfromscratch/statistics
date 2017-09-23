@@ -28,7 +28,7 @@ namespace Statistics
                 {
                     Console.WriteLine(@"Reading {0}", argument);
 
-                    var tool = new FrequencyTool(Settings.Default.HasHeader, GetDelimiters());
+                    var tool = new DedupeTool(Settings.Default.HasHeader, GetDelimiters());
                     string line;
                     const long chunkSize = (long)5e5;
                     for (var lineNumber = 1; null != (line = reader.ReadLine()); lineNumber++)

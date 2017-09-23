@@ -15,7 +15,9 @@
  */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Statistics
 {
@@ -74,12 +76,12 @@ namespace Statistics
         internal void Summary()
         {
             const float threshold = 0.9f;
-            var matches = new Dictionary<Record, IList<Record>>();
+            var matches = new ConcurrentDictionary<Record, IList<Record>>();
             var recordCount = _records.Count;
-            for (var recordIndex = 0; recordIndex < recordCount; recordIndex++)
+            Parallel.For(0, recordCount, recordIndex =>
             {
                 var record = _records[recordIndex];
-                for (var otherRecordIndex = recordIndex + 1; otherRecordIndex < recordCount; otherRecordIndex++)
+                Parallel.For(recordIndex + 1, recordCount, otherRecordIndex =>
                 {
                     // Calculate similarities
                     var otherRecord = _records[otherRecordIndex];
@@ -112,12 +114,12 @@ namespace Statistics
                             }
                             else
                             {
-                                matches.Add(record, new List<Record>() { otherRecord });
+                                matches[record] = new List<Record>() { otherRecord };
                             }
                         }
                     }
-                }
-            }
+                });
+            });
 
             // Print matches
             Console.WriteLine();

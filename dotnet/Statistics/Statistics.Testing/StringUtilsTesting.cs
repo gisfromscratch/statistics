@@ -30,5 +30,14 @@ namespace Statistics.Testing
             Assert.IsTrue(similarity < 1.0f, "The two strings are not identical!");
             Assert.IsTrue(0.0f < similarity, "The two strings are similar!");
         }
+
+        [TestMethod]
+        public void TestSoundEx()
+        {
+            var text = StringUtils.SoundEx("Licensed", 4);
+            var other = StringUtils.SoundEx("License", 4);
+            var similarity = StringUtils.Similarity(text, other);
+            Assert.IsTrue(similarity == 1.0f, "The two soundex codes are identical!");
+        }
     }
 }

@@ -15,6 +15,7 @@
  */
 
 using System;
+using System.Text;
 
 namespace Statistics
 {
@@ -26,6 +27,82 @@ namespace Statistics
         private const float Unequal = 0.0f;
         private const float Missing = 0.5f;
         private const float Identical = 1.0f;
+
+        /// <summary>
+        /// Creates the SOUNDEX code for the text.
+        /// </summary>
+        /// <param name="text"></param>
+        /// <param name="length"></param>
+        /// <returns></returns>
+        public static string SoundEx(string text, ushort length)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            var characters = text.ToUpperInvariant().ToCharArray();
+            var codeLength = Math.Min(characters.Length, length);
+            var buffer = new StringBuilder();
+            buffer.Append(characters[0]);
+            for (var index = 1; index <= codeLength; index++)
+            {
+                switch (characters[index])
+                {
+                    case 'A':
+                    case 'E':
+                    case 'I':
+                    case 'O':
+                    case 'U':
+                    case 'H':
+                    case 'W':
+                    case 'Y':
+                        buffer.Append("0");
+                        break;
+
+                    case 'B':
+                    case 'F':
+                    case 'P':
+                    case 'V':
+                        buffer.Append("1");
+                        break;
+
+                    case 'C':
+                    case 'G':
+                    case 'J':
+                    case 'K':
+                    case 'Q':
+                    case 'S':
+                    case 'X':
+                    case 'Z':
+                        buffer.Append("2");
+                        break;
+
+                    case 'D':
+                    case 'T':
+                        buffer.Append("3");
+                        break;
+
+                    case 'L':
+                        buffer.Append("4");
+                        break;
+
+                    case 'M':
+                    case 'N':
+                        buffer.Append("5");
+                        break;
+
+                    case 'R':
+                        buffer.Append("6");
+                        break;
+
+                    default:
+                        buffer.Append("0");
+                        break;
+                }
+            }
+            return buffer.ToString();
+        }
 
         /// <summary>
         /// Calculates the similarity between two strings.
@@ -82,7 +159,7 @@ namespace Statistics
                     upperLeft = upper;
                 }
             }
-            return Identical - (1.0f*distances[length]/otherLength);
+            return Identical - (1.0f * distances[length] / otherLength);
         }
     }
 }

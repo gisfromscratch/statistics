@@ -31,6 +31,8 @@ namespace Statistics
         private readonly char[] _delims;
         private bool _readHeader;
         private readonly IList<Record> _records;
+        private readonly DedupeModel _model;
+        private bool _modelInitialized;
         private readonly int _blockIndex;
         private readonly int[] _compareIndices;
         private readonly IDictionary<string, IList<Record>> _blocks;
@@ -41,6 +43,7 @@ namespace Statistics
             _delims = delims;
             _readHeader = true;
             _records = new List<Record>();
+            _model = new DedupeModel();
             _blockIndex = blockIndex;
             _compareIndices = compareIndices;
             _blocks = new Dictionary<string, IList<Record>>();
@@ -92,6 +95,14 @@ namespace Statistics
                         _blocks.Add(soundex, new List<Record> { record });
                     }
                 }
+
+                // TODO: Dedupe model
+                //if (!_modelInitialized)
+                //{
+                //    _model.Initialize(attributes);
+                //    _modelInitialized = true;
+                //}
+                //_model.AddRecord(record);
             }
 
             if (_readHeader)

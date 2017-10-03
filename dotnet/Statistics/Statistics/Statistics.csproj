@@ -67,6 +67,7 @@
   <ItemGroup>
     <Compile Include="Attribute.cs" />
     <Compile Include="AttributeType.cs" />
+    <Compile Include="DedupeModel.cs" />
     <Compile Include="DedupeTool.cs" />
     <Compile Include="Frequency.cs" />
     <Compile Include="FrequencyTool.cs" />

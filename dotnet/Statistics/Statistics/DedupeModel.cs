@@ -27,7 +27,11 @@ namespace Statistics
     /// </summary>
     internal class DedupeModel
     {
-        private readonly SQLiteConnection _connection;
+        private SQLiteConnection _connection;
+        private SQLiteTransaction _transaction;
+        private SQLiteCommand _insertCommand;
+        private IList<Attribute> _attributes;
+        private IList<SQLiteParameter> _insertParameters;
         private string _insertPrefix;
         private int _attributeCount;
 
@@ -35,10 +39,18 @@ namespace Statistics
         {
             _connection = new SQLiteConnection(@"Data Source=DedupeModel.db");
             _connection.Open();
+            _insertParameters = new List<SQLiteParameter>();
         }
 
         internal void Initialize(IList<Attribute> attributes)
         {
+            // Drop table
+            using (var dropCommand = new SQLiteCommand(_connection))
+            {
+                dropCommand.CommandText = @"DROP TABLE IF EXISTS Records;";
+                dropCommand.ExecuteNonQuery();
+            }
+
             var commandBuilder = new StringBuilder();
             commandBuilder.Append(@"CREATE TABLE IF NOT EXISTS Records (ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT");
             // TODO: Truncate table
@@ -65,33 +77,112 @@ namespace Statistics
                 createRecordTableCommand.CommandText = commandBuilder.ToString();
                 createRecordTableCommand.ExecuteNonQuery();
             }
+
+            // Create a transaction
+            _transaction = _connection.BeginTransaction();
+
+            _attributes = attributes;
         }
 
         internal void AddRecord(Record record)
         {
-            // TODO: Use SQLiteParameter and bulk inserts
-            var commandBuilder = new StringBuilder();
-            commandBuilder.Append(_insertPrefix);
-            commandBuilder.Append(@" VALUES (NULL");
+            // Use SQLiteParameter and bulk inserts
+            if (null == _insertCommand)
+            {
+                _insertCommand = new SQLiteCommand(_connection);
+
+                var commandBuilder = new StringBuilder();
+                commandBuilder.Append(_insertPrefix);
+                commandBuilder.Append(@" VALUES (NULL");
+                for (var attributeIndex = 0; attributeIndex < _attributeCount; attributeIndex++)
+                {
+                    var parameterName = string.Format(@":ATTRIBUTE_{0}", attributeIndex + 1);
+                    commandBuilder.AppendFormat(@", {0}", parameterName);
+                    var insertParameter = new SQLiteParameter();
+                    insertParameter.ParameterName = parameterName;
+                    insertParameter.DbType = System.Data.DbType.String;
+                    _insertCommand.Parameters.Add(insertParameter);
+                    _insertParameters.Add(insertParameter);
+                }
+                commandBuilder.Append(@");");
+                _insertCommand.CommandText = commandBuilder.ToString();
+            }
+
             var attributes = record.Attributes;
-            var attributeCount = attributes.Count;
+            var attributesCount = attributes.Count;
             for (var attributeIndex = 0; attributeIndex < _attributeCount; attributeIndex++)
             {
-                if (attributeIndex < attributeCount)
+                var parameter = _insertParameters[attributeIndex];
+                if (attributeIndex < attributesCount)
                 {
-                    var value = attributes[attributeIndex].Value;
-                    commandBuilder.AppendFormat(@", '{0}'", value.Replace('\'', '#'));
+                    parameter.Value = attributes[attributeIndex].Value;
                 }
                 else
                 {
-                    commandBuilder.Append(@", NULL");
+                    //parameter.Value = DBNull.Value;
+                    parameter.Value = null;
                 }
             }
-            commandBuilder.Append(@");");
-            using (var insertRecordCommand = new SQLiteCommand(_connection))
+            _insertCommand.ExecuteNonQuery();
+        }
+
+        internal Record GetRecord(int id)
+        {
+            var attributes = new List<Attribute>(_attributeCount);
+            foreach (var attribute in _attributes)
             {
-                insertRecordCommand.CommandText = commandBuilder.ToString();
-                insertRecordCommand.ExecuteNonQuery();
+                var clonedAttribute = new Attribute { AttributeType = attribute.AttributeType };
+                attributes.Add(clonedAttribute);
+            }
+            var record = new Record(attributes);
+
+            // Query the table
+            using (var selectCommand = new SQLiteCommand(_connection))
+            {
+                selectCommand.CommandText = string.Format(@"SELECT * FROM Records WHERE ID={0}", id);
+                using (var reader = selectCommand.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        for (var attributeIndex = 0; attributeIndex < _attributeCount; attributeIndex++)
+                        {
+                            var attribute = attributes[attributeIndex];
+                            var value = reader.GetFieldValue<string>(attributeIndex + 1);
+                            attribute.Value = value;
+                        }
+                    }
+                }
+            }
+            return record;
+        }
+
+        internal void Flush()
+        {
+            if (null != _transaction)
+            {
+                _transaction.Commit();
+            }
+        }
+
+        internal void Release()
+        {
+            if (null != _insertCommand)
+            {
+                _insertCommand.Dispose();
+                _insertCommand = null;
+            }
+
+            if (null != _transaction)
+            {
+                _transaction.Dispose();
+                _transaction = null;
+            }
+
+            if (null != _connection)
+            {
+                _connection.Close();
+                _connection.Dispose();
+                _connection = null;
             }
         }
     }

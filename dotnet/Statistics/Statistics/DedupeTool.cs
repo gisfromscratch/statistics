@@ -97,12 +97,12 @@ namespace Statistics
                 }
 
                 // TODO: Dedupe model
-                //if (!_modelInitialized)
-                //{
-                //    _model.Initialize(attributes);
-                //    _modelInitialized = true;
-                //}
-                //_model.AddRecord(record);
+                if (!_modelInitialized)
+                {
+                    _model.Initialize(attributes);
+                    _modelInitialized = true;
+                }
+                _model.AddRecord(record);
             }
 
             if (_readHeader)
@@ -113,6 +113,11 @@ namespace Statistics
 
         internal void Summary()
         {
+            if (_modelInitialized)
+            {
+                _model.Flush();
+            }
+
             const float threshold = 0.9f;
             var matches = new ConcurrentDictionary<Record, IList<Record>>();
             if (-1 == _blockIndex)
@@ -121,7 +126,10 @@ namespace Statistics
                 var recordCount = _records.Count;
                 Parallel.For(0, recordCount, recordIndex =>
                 {
-                    var record = _records[recordIndex];
+                    //var record = _records[recordIndex];
+                    // Access by using the model
+                    var record = _model.GetRecord(recordIndex + 1);
+
                     Interlocked.Increment(ref recordIndex);
                     Parallel.For(recordIndex, recordCount, otherRecordIndex =>
                     {
@@ -210,7 +218,10 @@ namespace Statistics
                     var recordCount = records.Count;
                     Parallel.For(0, recordCount, recordIndex =>
                     {
-                        var record = records[recordIndex];
+                        //var record = _records[recordIndex];
+                        // Access by using the model
+                        var record = _model.GetRecord(recordIndex + 1);
+
                         Interlocked.Increment(ref recordIndex);
                         Parallel.For(recordIndex, recordCount, otherRecordIndex =>
                         {
@@ -290,6 +301,9 @@ namespace Statistics
                     });
                 });
             }
+
+            // Release resources
+            _model.Release();
 
             // Print matches
             Console.WriteLine();

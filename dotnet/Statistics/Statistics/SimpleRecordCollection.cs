@@ -34,9 +34,11 @@ namespace Statistics
             _records = new List<Record>(initialCapacity);
         }
 
-        public void Add(Record record)
+        public int Add(Record record)
         {
             _records.Add(record);
+            var recordIndex = Count() - 1;
+            return recordIndex;
         }
 
         public Record Get(int index)

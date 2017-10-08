@@ -33,17 +33,17 @@ namespace Statistics
         private readonly IRecordCollection _records;
         private readonly int _blockIndex;
         private readonly int[] _compareIndices;
-        private readonly IDictionary<string, IList<Record>> _blocks;
+        private readonly IDictionary<string, IList<int>> _blocks;
 
         internal DedupeTool(bool hasHeader, char[] delims, int[] compareIndices, int blockIndex = -1)
         {
             _hasHeader = hasHeader;
             _delims = delims;
             _readHeader = true;
-            _records = new SqliteRecordCollection();
+            _records = new SimpleRecordCollection();
             _blockIndex = blockIndex;
             _compareIndices = compareIndices;
-            _blocks = new Dictionary<string, IList<Record>>();
+            _blocks = new Dictionary<string, IList<int>>();
         }
 
         internal void Apply(string line)
@@ -78,18 +78,18 @@ namespace Statistics
             if (0 < attributes.Count)
             {
                 var record = new Record(attributes);
-                _records.Add(record);
+                var recordIndex = _records.Add(record);
 
                 // SoundEx-Bocking
                 if (null != soundex)
                 {
                     if (_blocks.ContainsKey(soundex))
                     {
-                        _blocks[soundex].Add(record);
+                        _blocks[soundex].Add(recordIndex);
                     }
                     else
                     {
-                        _blocks.Add(soundex, new List<Record> { record });
+                        _blocks.Add(soundex, new List<int> { recordIndex });
                     }
                 }
             }
@@ -195,8 +195,8 @@ namespace Statistics
                 Parallel.ForEach(_blocks, block =>
                 {
                     // Any combination for this block
-                    var records = block.Value;
-                    var recordCount = records.Count;
+                    var recordIndices = block.Value;
+                    var recordCount = recordIndices.Count;
                     Parallel.For(0, recordCount, recordIndex =>
                     {
                         var record = _records.Get(recordIndex);
@@ -204,7 +204,8 @@ namespace Statistics
                         Parallel.For(recordIndex, recordCount, otherRecordIndex =>
                         {
                             // Calculate similarities
-                            var otherRecord = records[otherRecordIndex];
+                            var otherRecordIndexPosition = recordIndices[otherRecordIndex];
+                            var otherRecord = _records.Get(otherRecordIndexPosition);
                             var attributes = record.Attributes;
                             var otherAttributes = otherRecord.Attributes;
                             var attributeCount = attributes.Count;

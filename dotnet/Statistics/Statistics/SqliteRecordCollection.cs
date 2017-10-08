@@ -32,6 +32,7 @@ namespace Statistics
         private readonly int _autoCommitSize;
         private readonly object _commitLock;
         private int _newRecordCount;
+        private int _recordCount;
         private IList<Attribute> _attributes;
         private IList<SQLiteParameter> _insertParameters;
         private string _insertPrefix;
@@ -128,7 +129,7 @@ namespace Statistics
             }
         }
 
-        public void Add(Record record)
+        public int Add(Record record)
         {
             var attributes = record.Attributes;
 
@@ -176,12 +177,15 @@ namespace Statistics
             // Lock on each commit
             lock (_commitLock)
             {
+                _recordCount++;
                 _newRecordCount++;
                 if (_autoCommitSize <= _newRecordCount)
                 {
                     Flush();
                 }
             }
+
+            return _recordCount - 1;
         }
 
         public Record Get(int index)
@@ -227,22 +231,24 @@ namespace Statistics
 
         public int Count()
         {
-            // Lock on each commit
-            lock (_commitLock)
-            {
-                // Commit all new records
-                if (0 < _newRecordCount)
-                {
-                    Flush();
-                }
-            }
+            return _recordCount;
 
-            using (var countCommand = new SQLiteCommand(_connection))
-            {
-                countCommand.CommandText = @"SELECT COUNT(*) FROM Records";
-                var count = (int) countCommand.ExecuteScalar();
-                return count;
-            }
+            //// Lock on each commit
+            //lock (_commitLock)
+            //{
+            //    // Commit all new records
+            //    if (0 < _newRecordCount)
+            //    {
+            //        Flush();
+            //    }
+            //}
+
+            //using (var countCommand = new SQLiteCommand(_connection))
+            //{
+            //    countCommand.CommandText = @"SELECT COUNT(*) FROM Records";
+            //    var count = (int) countCommand.ExecuteScalar();
+            //    return count;
+            //}
         }
 
         #region IDisposable Support

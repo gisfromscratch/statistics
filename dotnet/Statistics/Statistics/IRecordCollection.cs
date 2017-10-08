@@ -24,10 +24,11 @@ namespace Statistics
     interface IRecordCollection : IDisposable
     {
         /// <summary>
-        /// Adds a record to this collection.
+        /// Adds a record to this collection and returns the record index.
         /// </summary>
         /// <param name="record">the record to add</param>
-        void Add(Record record);
+        /// <returns><see cref="int"/></returns>
+        int Add(Record record);
 
         /// <summary>
         /// Gets the specified record.

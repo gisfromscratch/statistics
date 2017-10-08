@@ -30,9 +30,7 @@ namespace Statistics
         private readonly bool _hasHeader;
         private readonly char[] _delims;
         private bool _readHeader;
-        private readonly IList<Record> _records;
-        private readonly DedupeModel _model;
-        private bool _modelInitialized;
+        private readonly IRecordCollection _records;
         private readonly int _blockIndex;
         private readonly int[] _compareIndices;
         private readonly IDictionary<string, IList<Record>> _blocks;
@@ -42,8 +40,7 @@ namespace Statistics
             _hasHeader = hasHeader;
             _delims = delims;
             _readHeader = true;
-            _records = new List<Record>();
-            _model = new DedupeModel();
+            _records = new SqliteRecordCollection();
             _blockIndex = blockIndex;
             _compareIndices = compareIndices;
             _blocks = new Dictionary<string, IList<Record>>();
@@ -95,14 +92,6 @@ namespace Statistics
                         _blocks.Add(soundex, new List<Record> { record });
                     }
                 }
-
-                // TODO: Dedupe model
-                if (!_modelInitialized)
-                {
-                    _model.Initialize(attributes);
-                    _modelInitialized = true;
-                }
-                _model.AddRecord(record);
             }
 
             if (_readHeader)
@@ -113,28 +102,20 @@ namespace Statistics
 
         internal void Summary()
         {
-            if (_modelInitialized)
-            {
-                _model.Flush();
-            }
-
             const float threshold = 0.9f;
             var matches = new ConcurrentDictionary<Record, IList<Record>>();
             if (-1 == _blockIndex)
             {
                 // Any combination
-                var recordCount = _records.Count;
+                var recordCount = _records.Count();
                 Parallel.For(0, recordCount, recordIndex =>
                 {
-                    //var record = _records[recordIndex];
-                    // Access by using the model
-                    var record = _model.GetRecord(recordIndex + 1);
-
+                    var record = _records.Get(recordIndex);
                     Interlocked.Increment(ref recordIndex);
                     Parallel.For(recordIndex, recordCount, otherRecordIndex =>
                     {
                         // Calculate similarities
-                        var otherRecord = _records[otherRecordIndex];
+                        var otherRecord = _records.Get(otherRecordIndex);
                         var attributes = record.Attributes;
                         var otherAttributes = otherRecord.Attributes;
                         var attributeCount = attributes.Count;
@@ -218,10 +199,7 @@ namespace Statistics
                     var recordCount = records.Count;
                     Parallel.For(0, recordCount, recordIndex =>
                     {
-                        //var record = _records[recordIndex];
-                        // Access by using the model
-                        var record = _model.GetRecord(recordIndex + 1);
-
+                        var record = _records.Get(recordIndex);
                         Interlocked.Increment(ref recordIndex);
                         Parallel.For(recordIndex, recordCount, otherRecordIndex =>
                         {
@@ -303,7 +281,9 @@ namespace Statistics
             }
 
             // Release resources
-            _model.Release();
+            _records.Dispose();
+
+#if RELEASE
 
             // Print matches
             Console.WriteLine();
@@ -328,6 +308,7 @@ namespace Statistics
                 Console.WriteLine();
             }
             Console.WriteLine();
+#endif
         }
     }
 }

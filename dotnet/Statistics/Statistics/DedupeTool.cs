@@ -283,8 +283,8 @@ namespace Statistics
             // Release resources
             _records.Dispose();
 
-#if RELEASE
-
+#if DEBUG
+#else
             // Print matches
             Console.WriteLine();
             foreach (var match in matches)

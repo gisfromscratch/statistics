@@ -1,0 +1,66 @@
+﻿<Window x:Class="DataQualityApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DataQualityApp"
+        xmlns:vm="clr-namespace:DataQualityApp.ViewModel"
+        xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+        mc:Ignorable="d"
+        Title="Data Quality" Height="350" Width="525">
+    <!-- View Model -->
+    <Window.DataContext>
+        <vm:DataQualityViewModel/>
+    </Window.DataContext>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        
+        <ListBox Grid.Column="0" HorizontalAlignment="Stretch" ItemsSource="{Binding Items}">
+            <!-- Stretch the listbox items -->
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="50"></RowDefinition>
+                        </Grid.RowDefinitions>
+
+                        <Label VerticalAlignment="Center" Grid.Column="0" Content="{Binding Name}"
+                               FontSize="14" FontWeight="Bold">
+                        </Label>
+                        <lvc:Gauge Grid.Column="1"
+                                   From="0" To="100" Value="{Binding Quality}"
+                                   HighFontSize="12"
+                                   LabelsVisibility="Collapsed"
+                                   Uses360Mode="True">
+                            <lvc:Gauge.GaugeActiveFill>
+                                <LinearGradientBrush>
+                                    <GradientStop Color="LightGreen" Offset="0.0" />
+                                    <GradientStop Color="Green" Offset="0.5" />
+                                    <GradientStop Color="DarkGreen" Offset="1.0" />
+                                </LinearGradientBrush>
+                            </lvc:Gauge.GaugeActiveFill>
+                            <lvc:Gauge.GaugeRenderTransform>
+                                <TransformGroup>
+                                    <RotateTransform Angle="90"></RotateTransform>
+                                </TransformGroup>
+                            </lvc:Gauge.GaugeRenderTransform>
+                        </lvc:Gauge>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+</Window>
